@@ -8,8 +8,6 @@ import io.vavr.control.Try;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static io.vavr.API.*;
 import static io.vavr.Patterns.$None;
@@ -20,10 +18,32 @@ import static org.junit.jupiter.api.Assertions.*;
 //@ExtendWith(MockitoExtension.class)
 
 public class JavaVavrTest {
- private static  final Logger LOGGER = LoggerFactory.getLogger(JavaVavrTest.class);
+
+    @Test
+    void basicTest(){
+        Try<Long> result = Try.of( () -> Long.parseLong("12347"));
+        List<String> list = List.of("2", "3", "5", "7", "11", "13", "17", "19", "23");
+        var numbers = list.map(i -> Try.of(() -> Integer.parseInt(i))
+                        .map(b -> "Success: " + b)
+                        .recover(NumberFormatException.class,e -> "Error: " + e.getMessage())
+                        .get())
+                .take(5)
+                .toList();
+
+        assertEquals(List("Success: 2", "Success: 3","Success: 5","Success: 7","Success: 11"), numbers);
+
+
+        var res = result
+                .map(i -> "Success: " + i)
+                .recover(NumberFormatException.class,e ->  "Error: " + e.getMessage())
+                .get();
+
+        assertEquals("Success: 12347", res);
+    }
     @Test
     void listOptionFlatmap() {
         List<Option<Integer>> raw = List(Option(10), Option.none(), Option(20));
+        
         List<Integer> result = raw.flatMap(o -> o);
         // result.forEach(s -> LOGGER.error(s.toString()));
         assertEquals(List(10, 20), result);
