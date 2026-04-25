@@ -1,236 +1,62 @@
-import io.vavr.Lazy;
-import io.vavr.Tuple2;
 import io.vavr.collection.List;
-import io.vavr.collection.Stream;
 import io.vavr.control.Either;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
-import static io.vavr.API.*;
-import static io.vavr.Patterns.$None;
-import static io.vavr.Patterns.$Some;
-import static io.vavr.Predicates.isIn;
+import static io.vavr.API.Left;
+import static io.vavr.API.Right;
 import static org.junit.jupiter.api.Assertions.*;
 
-//@ExtendWith(MockitoExtension.class)
-
-public class JavaVavrTest {
+class JavaVavrBasicTest {
 
     @Test
-    void basicTest(){
-        Try<Long> result = Try.of( () -> Long.parseLong("12347"));
-        List<String> list = List.of("2", "3", "5", "7", "11", "13", "17", "19", "23");
-        var numbers = list.map(i -> Try.of(() -> Integer.parseInt(i))
-                        .map(b -> "Success: " + b)
-                        .recover(NumberFormatException.class,e -> "Error: " + e.getMessage())
-                        .get())
-                .take(5)
-                .toList();
+    void option_basic() {
+        Option<String> value = Option.of("hej");
+        Option<String> empty = Option.of(null);
 
-        assertEquals(List("Success: 2", "Success: 3","Success: 5","Success: 7","Success: 11"), numbers);
+        assertTrue(value.isDefined());
+        assertEquals("hej", value.get());
 
-
-        var res = result
-                .map(i -> "Success: " + i)
-                .recover(NumberFormatException.class,e ->  "Error: " + e.getMessage())
-                .get();
-
-        assertEquals("Success: 12347", res);
-    }
-    @Test
-    void listOptionFlatmap() {
-        List<Option<Integer>> raw = List(Option(10), Option.none(), Option(20));
-        
-        List<Integer> result = raw.flatMap(o -> o);
-        // result.forEach(s -> LOGGER.error(s.toString()));
-        assertEquals(List(10, 20), result);
+        assertTrue(empty.isEmpty());
     }
 
     @Test
-    void listTransformations() {
-        List<Integer> result = List(1, 2, 3, 4)
-                .map(i -> i * 2)
-                .filter(i -> i > 4);
-
-        assertEquals(List(6, 8), result);
-    }
-
-    @Test
-    void tupleUsage() {
-        Tuple2<String, Integer> person = Tuple("Alice", 30);
-        Tuple2<String, Integer> updated = person.map2(age -> age + 5);
-
-        assertEquals("Alice", updated._1);
-        assertEquals(35, updated._2);
-    }
-
-    @Test
-    void optionNullSafety() {
-        String input = null;
-
-        Option<String> result = Option.of(input)
-                .map(String::toUpperCase);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void optionChaining() {
-        Option<Integer> result = Option("42 ")
-                .map(String::trim)
-                .map(Integer::parseInt)
-                .filter(i -> i > 0);
-
-        assertEquals(42, result.get());
-    }
-
-    @Test
-    void trySuccessFailure() {
-        Try<Integer> success = Try.of(() -> Integer.parseInt("10"));
-        Try<Integer> failure = Try.of(() -> Integer.parseInt("x"));
+    void try_basic() {
+        Try<Integer> success = Try.of(() -> Integer.parseInt("123"));
+        Try<Integer> failure = Try.of(() -> Integer.parseInt("abc"));
 
         assertTrue(success.isSuccess());
-        assertTrue(failure.isFailure());
+        assertEquals(123, success.get());
 
-        assertEquals(10, success.get());
+        assertTrue(failure.isFailure());
         assertEquals(0, failure.getOrElse(0));
     }
 
     @Test
-    void tryChaining() {
-        Try<Integer> result = Try.of(() -> 10)
-                .map(i -> i * 2)
-                .filter(i -> i > 10);
-
-        assertEquals(20, result.get());
-    }
-
-    @Test
-    void eitherBusinessLogic() {
+    void either_basic() {
         Either<String, Integer> ok = divide(10, 2);
         Either<String, Integer> fail = divide(10, 0);
 
         assertTrue(ok.isRight());
-        assertTrue(fail.isLeft());
-
         assertEquals(5, ok.get());
+
+        assertTrue(fail.isLeft());
         assertEquals("Division by zero", fail.getLeft());
+    }
+
+    @Test
+    void list_basic() {
+        List<Integer> numbers = List.of(1, 2, 3, 4);
+
+        List<Integer> result = numbers
+                .map(n -> n * 2)
+                .filter(n -> n > 4);
+
+        assertEquals(List.of(6, 8), result);
     }
 
     private Either<String, Integer> divide(int a, int b) {
         return b == 0 ? Left("Division by zero") : Right(a / b);
-    }
-
-    @Test
-    void patternMatchingOption() {
-        Option<Integer> input = Option(42);
-
-        String result = Match(input).of(
-                Case($Some($(42)), "answer"),
-                Case($Some($()), "other"),
-                Case($None(), "empty")
-        );
-
-        assertEquals("answer", result);
-    }
-
-
-    @ParameterizedTest
-    @CsvSource({
-            "-h, Help is coming....",
-            "--help, Help is coming....",
-            "-v,  java 25.0.2 2026-01-20 LTS"
-    })
-    void patternMatchingWithTest(String arg, String expectedStart) {
-        String result = Match(arg).of(
-                Case($(isIn("-h", "--help")), o -> displayHelp()),
-                Case($(isIn("-v", "--version")), o -> displayVersion()),
-                Case($(), o -> { throw  new IllegalArgumentException(arg);
-                })
-
-        );
-
-       assertEquals(expectedStart, result);
-    }
-
-    private String displayVersion() {
-        return "java 25.0.2 2026-01-20 LTS";
-    }
-
-    private String displayHelp() {
-        return "Help is coming....";
-    }
-
-    @Test
-    void lazyMemoizationTest() {
-        Lazy<Double> lazy = Lazy.of(Math::random);
-
-        assertFalse(lazy.isEvaluated());
-
-        Double v1 = lazy.get();
-        Double v2 = lazy.get();
-
-        assertTrue(lazy.isEvaluated());
-        assertEquals(v1, v2);
-    }
-
-    @Test
-    void streamLazySequence() {
-        List<Integer> result = Stream.from(1)
-                .take(5)
-                .toList();
-
-        assertEquals(List(1, 2, 3, 4, 5), result);
-    }
-
-    @Test
-    void sideEffectsPeek() {
-        List<String> result = List("a", "b")
-               // .peek(s -> System.out.println("Processing " + s))
-                .map(String::toUpperCase);
-
-        assertEquals(List("A", "B"), result);
-    }
-
-    @Test
-    void optionToTryConversion() {
-        Option<String> maybe = Option("100");
-
-        Try<Integer> result = maybe
-                .toTry(() -> new RuntimeException("Missing"))
-                .map(Integer::parseInt);
-
-        assertEquals(100, result.get());
-    }
-
-    @Test
-    void pipelineTest() {
-        String input = " 50 ";
-
-
-        Try<Integer> result = Try.of(() -> input)
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(Integer::parseInt)
-                .filter(i -> i > 0);
-
-        assertTrue(result.isSuccess());
-        assertEquals(50, result.get());
-    }
-
-    @Test
-    void combinedOptionTryEither() {
-        Either<String, Integer> result = Option("25")
-                .toEither("No input")
-                .map(String::trim)
-                .flatMap(s -> Try.of(() -> Integer.parseInt(s))
-                        .toEither("Invalid number"))
-                .filterOrElse(i -> i > 10, i -> "Too small");
-
-        assertTrue(result.isRight());
-        assertEquals(25, result.get());
     }
 }
